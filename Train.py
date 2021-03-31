@@ -14,7 +14,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 48, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 512, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = False,
-              use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True):
+              use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True,
+              reward_mode = None):
   
   # create the environment
   game = Onitama(verbose = False)
@@ -58,6 +59,9 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   # win list to store episode numbers of when the agent wins against the AI
   win_list =[]
 
+  # valid_rate log
+  valid_rate_log = []
+
   # lists to store losses 
   if model == "DDPG":
     
@@ -83,45 +87,72 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
     # let the red player be the competing AI while the blue player be the Deep RL agent
     if game.whose_turn == 'red':
+      # record valid actions for opponent
+      val_actions_mask_opponent = game.check_NN_valid_move_space()
+      # record the state of the opponent
+      if use_competing_AI_replay:
+        opponent_board_state_prime, opponent_card_state_prime = game.return_NN_state(perspective = 'red', use_hardcoded = use_hardcoded_cards)
       # if red gets to go first, then let the competing AI make a move first
       if competing_AI_mode.lower() == 'minimax':
-        # print("{} : opponent".format(game.whose_turn))
         # first turn for minimax AI
         game.turn_minimax(minimax_depth = competing_AI_strength + AI_strength_boost)
+        ai_action_index = game.selected_move_index
+      # completely random AI
+      elif competing_AI_mode.lower() == 'randomai':
+        ai_action_index = random.choice([i for i, x in enumerate(game.check_NN_valid_move_space()) if x == 1])
+        game.turn_deeprl(ai_action_index)
       else:
         # first turn for MCTS AI (create the AI object first) 
         mcts_ai = mcts(iterationLimit = competing_AI_strength + AI_strength_boost, verbose = 0)
         game.turn_mcts(mcts_object = mcts_ai)
+        ai_action_index = mcts_ai.move_index
     else:
       # if blue gets to go first, create the MCTS object first (if mcts is used as the competing AI)
       if competing_AI_mode.lower() == "mcts":
         mcts_ai = mcts(iterationLimit = competing_AI_strength + AI_strength_boost, verbose = 0)
 
     # regardless of whether red went first, now we record the board_state and card_state in both perspectives
-    agent_board_state, agent_card_state = game.return_NN_state(perspective = 'blue', use_hardcoded = use_hardcoded_cards)
-    if use_competing_AI_replay:
-      opponent_board_state_prime, opponent_card_state_prime = game.return_NN_state(perspective = 'red', use_hardcoded = use_hardcoded_cards)
+    agent_board_state_prime, agent_card_state_prime = game.return_NN_state(perspective = 'blue', use_hardcoded = use_hardcoded_cards)
 
     # boolean to indicate if episode has terminated
     is_done = 0
 
+    # list to measure valid rate, first index is count for valid move and second index is count for all moves
+    valid_count = [0,0]
+
     # run episode until it terminates
     while is_done == 0:
+
+      # reset last turn's state_prime into this turn's state (try-except added in the opponent case state_prime does not yet exist)
+      agent_board_state, agent_card_state = agent_board_state_prime[:], agent_card_state_prime[:]
+      try:
+        opponent_board_state, opponent_card_state = opponent_board_state_prime[:], opponent_card_state_prime[:]
+      except:
+        pass
 
       # boolean to check if action spit out is valid
       is_valid_action = 0
       # counter to keep track of consecutive turns where Deep RL AI chose an invalid move
       is_invalid_counter = 0
       # get a list of valid actions (1 for valid and 0 otherwise)
-      val_actions_target = game.check_NN_valid_move_space()
+      val_actions_mask = game.check_NN_valid_move_space()
 
       while is_valid_action == 0:
 
         # if hand_of_god is true, then force the AI to only select valid actions
         # get the actions (integer from 0 - 39) to be taken based on the board and card states
         if hand_of_god: 
-          action_probs, action = agent.select_action("train", agent_board_state, agent_card_state, val_actions_target)
-      
+          action_probs_premask, action_premask = agent.select_action("train", agent_board_state, agent_card_state)
+          # multiple by valid_actions mask
+          action_probs = action_probs_premask * np.array(val_actions_mask)
+          # renormalise sum of probabilities to 1
+          action_probs /= np.sum(action_probs)
+          #select the action (10% valid)
+          action = np.argmax(action_probs)
+          # record for valid_rate
+          if val_actions_mask[action_premask] == 1:
+            valid_count[0] += 1
+          valid_count[1] += 1
         else:
           action_probs, action = agent.select_action("train", agent_board_state, agent_card_state)
           
@@ -132,24 +163,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
           is_valid_action = 1
         # else:
         #   # if it is invalid --> apply hand of god to get the board_state_prime and card_state_prime
-        #   action = agent.select_action("train", board_state, card_state, val_actions_target)
+        #   action = agent.select_action("train", board_state, card_state, val_actions_mask)
         #   game.turn_deeprl(move_index = action)
-
-        # record the state prime observations
-        agent_board_state_prime, agent_card_state_prime = game.return_NN_state(perspective = 'blue', use_hardcoded = use_hardcoded_cards)
-        if use_competing_AI_replay:
-          opponent_board_state, opponent_card_state = game.return_NN_state(perspective = 'red', use_hardcoded = use_hardcoded_cards)
-
-        if game.blue_win:
-          is_done = 1
-          win_loss_counter += 1
-          index = win_loss_counter % win_loss_mem_size
-          win_loss_list[index] = 1
-          win_list.append(episode)
-          print("deep rl wins##################################################################")
-
-        # get the reward (multiplied by -1 as the original negative rewards favour the blue (deep RL agent) player)
-        reward = -game.eval_board_state()
 
         # add a further penalty if an invalid piece was chosen
         if not is_valid_action:
@@ -157,11 +172,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
           is_invalid_counter += 1
           print("Turn {}: Agent Chose wrongly for {} consecutive tries".format(total_turns, is_invalid_counter))
 
-        # store experience in replay memory
-        agent.store_memory(agent_board_state, agent_card_state, action_probs, val_actions_target, reward,
-         agent_board_state_prime, agent_card_state_prime, is_done)
-
         # apply gradients for learning to reduce loss and append losses to lists
+        # try-except added as nothing is returned until batch size is filled
         try:
           if model == "DDPG" and mode == "train":
             actor_training_loss, actor_val_loss, actor_loss, critic_loss = agent.apply_gradients_DDPG()
@@ -176,17 +188,49 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
             total_loss_list.append(total_loss)
         except:
           pass
-        total_turns += 1
+
+      # increment turn
+      total_turns += 1
+
+      if game.blue_win:
+        is_done = 1
+        win_loss_counter += 1
+        index = win_loss_counter % win_loss_mem_size
+        win_loss_list[index] = 1
+        win_list.append(episode)
+        print("deep rl wins ##################################################################")
+
+      # Record opponent's state
+      if use_competing_AI_replay:
+        
+        opponent_board_state_prime, opponent_card_state_prime = game.return_NN_state(perspective = 'red', use_hardcoded = use_hardcoded_cards)
+        reward = game.eval_board_state(mode = reward_mode) # no -ve needed as the perspective is from the competing AI
+        # obtain one hot encoded action
+        action_one_hot = np.zeros(40)
+        action_one_hot[ai_action_index] = 1
+        # store experience in replay (note that the opponent's perspective is used to preserve the order of the states)
+        try: # as a full turn may not have completed yet
+          agent.store_memory(opponent_board_state, opponent_card_state, action_one_hot, val_actions_mask_opponent,
+          reward, opponent_board_state_prime, opponent_card_state_prime, is_done)
+        except:
+          pass
+
+      # record valid actions for opponent
+      val_actions_mask_opponent = game.check_NN_valid_move_space()
 
       # Let the competing AI make its responsive turn if game has not terminated
       if not game.isTerminal():
         if competing_AI_mode.lower() == 'minimax':
           # next turn for minimax AI
-          # print("{} : opponent".format(game.whose_turn))
           game.turn_minimax(minimax_depth = competing_AI_strength, return_move_index = True)
+          ai_action_index = game.selected_move_index
+        elif competing_AI_mode.lower() == 'randomai':
+          ai_action_index = random.choice([i for i, x in enumerate(game.check_NN_valid_move_space()) if x == 1])
+          game.turn_deeprl(ai_action_index)
         else:
           # next turn for MCTS AI
           game.turn_mcts(mcts_object = mcts_ai)
+          ai_action_index = mcts_ai.move_index
 
       # check if red wins (opponent AI)
       if game.red_win:
@@ -197,38 +241,19 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
         print("deep rl loses")
         # print(-1 * game.eval_board_state())
 
-      # record valid actions for opponent
-      val_actions_target = game.check_NN_valid_move_space()
-
-      # re-record the board_state and card_state
-      agent_board_state, agent_card_state = game.return_NN_state(perspective = 'blue', use_hardcoded = use_hardcoded_cards)
-      if use_competing_AI_replay:
-        opponent_board_state_prime, opponent_card_state_prime = game.return_NN_state(perspective = 'red', use_hardcoded = use_hardcoded_cards)
-
-      # add in experience replay of competing AI if specified
-      if use_competing_AI_replay:
-
-        reward = game.eval_board_state() # no -ve needed as the perspective is from the competing AI
-
-        # extract the action taken by competing AI in terms of move_index (0-39)
-        if competing_AI_mode.lower() == 'minimax':
-          action = game.selected_move_index
-        else:
-          action = mcts_ai.move_index
-
-        # obtain one hot encoded action
-        action_one_hot = np.zeros(40)
-        action_one_hot[action] = 1
-
-        # store experience in replay (note that the opponent's perspective is used to preserve the order of the states)
-        agent.store_memory(opponent_board_state, opponent_card_state, action_one_hot, val_actions_target,
-        reward, opponent_board_state_prime, opponent_card_state_prime, is_done)
+      # Now we can record the Agent's state_prime
+      agent_board_state_prime, agent_card_state_prime = game.return_NN_state(perspective = 'blue', use_hardcoded = use_hardcoded_cards)
+      # Record the Agent's reward (multiplied by -1 as blue is minimising player)
+      reward = -game.eval_board_state(mode = reward_mode)
+      # store experience in replay memory
+      agent.store_memory(agent_board_state, agent_card_state, action_probs, val_actions_mask, reward,
+      agent_board_state_prime, agent_card_state_prime, is_done)
 
       # increment total_turns
       total_turns += 1
     
     # plot losses
-    if model == "DDPG" and mode == "train" and episode % 50 == 0 and episode != 0: 
+    if model == "DDPG" and mode == "train" and episode % 5000 == 0 and episode != 0: 
 
       plt.title("DDPG Actor Training Loss")
       plot_1 = sns.lineplot(data = np.array(actor_training_loss_list))
@@ -313,16 +338,21 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
         AI_strength_boost += 5000
 
+    # calculate valid_rate
+    valid_rate_log.append(valid_count[0]/valid_count[1])
     # reset the game
     game.reset()
 
   # print win list
   print(win_list)
   print("Agent won {} games out of {}".format(len(win_list), episodes))
+  print(valid_rate_log)
+  agent.save_all_models()
 
 if __name__ == "__main__":
-  onitama_deeprl_train("train", "DDPG", 5000, "testing_integration", "minimax", 1, discount_rate = 0.99, 
+  onitama_deeprl_train("train", "DDPG", 20000, "first_attempt", "minimax", 1, discount_rate = 0.99, 
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
-              use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True)
+              use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
+              reward_mode = "simple_reward")

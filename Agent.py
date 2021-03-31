@@ -171,7 +171,7 @@ class Agent:
             # hard update target model's weights to online network to match initialised weights
             self.update_d3qn_target_model(tau = 1)
             
-    def select_action(self, mode, board_state, card_state, val_actions_target = None):
+    def select_action(self, mode, board_state, card_state):
         
         """ function to select action for the turn from observations of board and card states """
         
@@ -192,13 +192,6 @@ class Agent:
 
             # obtain numpy array from tensor in device
             action_probs = softmax_output.cpu().detach().numpy()[0]
-
-            # if val_actions_target is present, then the output MUST be multiplied by the validity
-            # In other words, all illegal action probabilities are forced to be zero [HAND OF GOD INTERVENTION]
-            if val_actions_target != None:
-              action_probs *= np.array(val_actions_target)
-              # renormalise sum of probabilities to 1
-              action_probs /= np.sum(action_probs)
 
             # set actor model to training mode (for batch norm and dropout)
             self.DDPG_Actor.train()
@@ -238,10 +231,10 @@ class Agent:
                 # feed observation tensor to actor model to obtain advantage values
                 _ , adv, _ = self.D3QN_q_eval.forward(board_state, card_state, None)
 
-                # if val_actions_target is present, then the output MUST be multiplied by the validity
+                # if val_actions_mask is present, then the output MUST be multiplied by the validity
                 # In other words, all illegal advantages are forced to be zero [HAND OF GOD INTERVENTION]
-                if val_actions_target != None:
-                  adv = T.mul(adv, T.tensor(val_actions_target, dtype = T.float))
+                if val_actions_mask != None:
+                  adv = T.mul(adv, T.tensor(val_actions_mask, dtype = T.float))
 
                 # obtain action with largest advantage value
                 action = T.argmax(adv).item()
@@ -255,11 +248,11 @@ class Agent:
 
             return action_one_hot, action
             
-    def store_memory(self, board_state, card_state, action, val_actions_target, reward, board_state_prime, card_state_prime, is_done):
+    def store_memory(self, board_state, card_state, action, val_actions_mask, reward, board_state_prime, card_state_prime, is_done):
     
         """ function to log board_state, card_state, action, reward, board_state_prime, card_state_prime, terminal flag """
 
-        self.memory.log(board_state, card_state, action, val_actions_target, reward, board_state_prime, card_state_prime, is_done)
+        self.memory.log(board_state, card_state, action, val_actions_mask, reward, board_state_prime, card_state_prime, is_done)
         
     def apply_gradients_DDPG(self):
         
@@ -272,7 +265,7 @@ class Agent:
         
         # randomly sample batch of memory of board_state, card_state, action, reward, board_state_prime, 
         # card_state_prime, terminal flag from memory log
-        board_states, card_states, actions, val_actions_target, rewards, board_states_prime, card_states_prime, is_dones = \
+        board_states, card_states, actions, val_actions_masks, rewards, board_states_prime, card_states_prime, is_dones = \
         self.memory.sample_log(self.batch_size)
         
         # turn features to tensors for critic model in device
@@ -283,7 +276,7 @@ class Agent:
         board_states_prime = T.tensor(board_states_prime, dtype = T.float).to(self.DDPG_Critic.device)
         card_states_prime = T.tensor(card_states_prime, dtype = T.float).to(self.DDPG_Critic.device)
         # turn valid actions targets, binary vector with len = number of actions, with 1 as valid, 0 as illegal, to tensor
-        val_actions_target = T.tensor(val_actions_target, dtype = T.float).to(self.DDPG_Actor.device)
+        val_actions_masks = T.tensor(val_actions_masks, dtype = T.float).to(self.DDPG_Actor.device)
         
         # set all models to eval mode to calculate td_target
         self.DDPG_Critic.eval()
@@ -349,7 +342,7 @@ class Agent:
         actor_training_loss = T.mean(actor_training_loss)
         
         # val loss for actions to actor loss
-        actor_val_loss = self.val_constant * F.mse_loss(val_actions_target, val_output)
+        actor_val_loss = self.val_constant * F.mse_loss(val_actions_masks, val_output)
         
         # actor loss
         actor_loss = actor_training_loss + actor_val_loss
@@ -388,7 +381,7 @@ class Agent:
         
         # randomly sample batch of memory of board_state, card_state, action, reward, board_state_prime, 
         # card_state_prime, terminal flag from memory log
-        board_states, card_states, actions, val_actions_target, rewards, board_states_prime, card_states_prime, is_dones = \
+        board_states, card_states, actions, val_actions_mask, rewards, board_states_prime, card_states_prime, is_dones = \
         self.memory.sample_log(self.batch_size)
         
         # reset gradients for eval model to zero
@@ -404,7 +397,7 @@ class Agent:
         is_dones = T.tensor(is_dones, dtype = T.long).to(self.D3QN_q_eval.device)
         
         # turn valid actions targets, binary vector with len = number of actions, with 1 as valid, 0 as illegal, to tensor
-        val_actions_target = T.tensor(val_actions_target, dtype = T.float).to(self.D3QN_q_eval.device)
+        val_actions_mask = T.tensor(val_actions_mask, dtype = T.float).to(self.D3QN_q_eval.device)
         
         # compute v and a from current state using eval model
         v_eval, a_eval, val_eval = self.D3QN_q_eval.forward(board_states, card_states, None)
@@ -446,7 +439,7 @@ class Agent:
 
         # calculate loss
         training_loss = F.mse_loss(td_target, q_eval) 
-        val_loss = self.val_constant * F.mse_loss(val_actions_target, val_eval)
+        val_loss = self.val_constant * F.mse_loss(val_actions_mask, val_eval)
         loss = training_loss + val_loss
 
         # actor model back propagation

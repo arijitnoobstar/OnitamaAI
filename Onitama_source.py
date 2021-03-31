@@ -715,13 +715,20 @@ class Onitama:
     self.check_win()
 
     # now update the position of the cards, the player of this turn will get the side card and discard used card to the side
+    # update based on the order specified in card_colours
     if self.whose_turn == 'blue':
-      self.blue_cards.append(self.side_card[0])
       self.blue_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.blue_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.blue_cards.append(self.side_card[0])
+      else:
+        self.blue_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
     else:
-      self.red_cards.append(self.side_card[0])
       self.red_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.red_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.red_cards.append(self.side_card[0])
+      else:
+        self.red_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
 
     # finally, change turns
@@ -746,15 +753,21 @@ class Onitama:
     self.check_win()
 
     # now update the position of the cards, the player of this turn will get the side card and discard used card to the side
+    # update based on the order specified in card_colours
     if self.whose_turn == 'blue':
-      self.blue_cards.append(self.side_card[0])
       self.blue_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.blue_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.blue_cards.append(self.side_card[0])
+      else:
+        self.blue_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
     else:
-      self.red_cards.append(self.side_card[0])
       self.red_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.red_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.red_cards.append(self.side_card[0])
+      else:
+        self.red_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
-
     # finally, change turns
     if self.whose_turn == 'blue':
       self.whose_turn = 'red'
@@ -768,7 +781,7 @@ class Onitama:
 
     return True
 
-  def turn_minimax(self, minimax_depth = None, parallel = None, prune = True, return_move_index = False):
+  def turn_minimax(self, minimax_depth = None, parallel = None, prune = True, return_move_index = True):
     
     """ This method implements the process of one turn of gameplay for minimax algo"""
     self.prune = prune
@@ -802,13 +815,20 @@ class Onitama:
     self.check_win()
 
     # now update the position of the cards, the player of this turn will get the side card and discard used card to the side
+    # update based on the order specified in card_colours
     if self.whose_turn == 'blue':
-      self.blue_cards.append(self.side_card[0])
       self.blue_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.blue_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.blue_cards.append(self.side_card[0])
+      else:
+        self.blue_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
     else:
-      self.red_cards.append(self.side_card[0])
       self.red_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.red_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.red_cards.append(self.side_card[0])
+      else:
+        self.red_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
 
     # finally, change turns
@@ -847,13 +867,20 @@ class Onitama:
     self.check_win()
 
     # now update the position of the cards, the player of this turn will get the side card and discard used card to the side
+    # update based on the order specified in card_colours
     if self.whose_turn == 'blue':
-      self.blue_cards.append(self.side_card[0])
       self.blue_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.blue_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.blue_cards.append(self.side_card[0])
+      else:
+        self.blue_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
     else:
-      self.red_cards.append(self.side_card[0])
       self.red_cards.remove(self.selected_card)
+      if (list(self.card_colour.keys()).index(self.red_cards[0]) < list(self.card_colour.keys()).index(self.side_card[0])):
+        self.red_cards.append(self.side_card[0])
+      else:
+        self.red_cards.insert(0, self.side_card[0])
       self.side_card = [self.selected_card]
 
     # finally, change turns
@@ -957,23 +984,22 @@ class Onitama:
     self.selected_card_log =  self.selected_card_log[:self.number_of_turns]
     self.selected_move_log =  self.selected_move_log[:self.number_of_turns]
 
-  def eval_board_state(self):
+  def eval_board_state(self, mode = None):
 
     """ This function evaluates the board state based on OUR preconceived notion of value """
+
+    # simple reward for winning or losing
+    if mode == "simple_reward":
+      if self.red_win == True:
+        return 1
+      elif self.blue_win == True:
+        return -1
+      else:
+        return 0
 
     # initialise score
     score = 0
 
-    # win condition game state
-    '''
-    if self.red_win == True:
-      score += 5000
-      return score
-    elif self.blue_win == True:
-      score -= 5000
-      return score
-    '''
-    
     # evaluates the piece state. assume red as maximising player and blue as minimizing
     for piece in list(self.piece_state.keys()):
       if 'r' in piece and self.piece_state[piece] != -1:
