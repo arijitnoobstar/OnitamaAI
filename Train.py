@@ -15,7 +15,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
               num_actions = 40, max_mem_size = 1000000, batch_size = 512, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = False,
               use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True,
-              reward_mode = None):
+              reward_mode = None, minimax_boost = 1, mcts_boost = 5000, plot_every = 500):
   
   # create the environment
   game = Onitama(verbose = False)
@@ -222,7 +222,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       if not game.isTerminal():
         if competing_AI_mode.lower() == 'minimax':
           # next turn for minimax AI
-          game.turn_minimax(minimax_depth = competing_AI_strength, return_move_index = True)
+          game.turn_minimax(minimax_depth = competing_AI_strength + AI_strength_boost, return_move_index = True)
           ai_action_index = game.selected_move_index
         elif competing_AI_mode.lower() == 'randomai':
           ai_action_index = random.choice([i for i, x in enumerate(game.check_NN_valid_move_space()) if x == 1])
@@ -253,7 +253,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       total_turns += 1
     
     # plot losses
-    if model == "DDPG" and mode == "train" and episode % 5000 == 0 and episode != 0: 
+    if model == "DDPG" and mode == "train" and episode % plot_every == 0 and episode != 0: 
 
       plt.title("DDPG Actor Training Loss")
       plot_1 = sns.lineplot(data = np.array(actor_training_loss_list))
@@ -291,7 +291,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.close()
       plt.show() 
 
-    elif model == "D3QN" and episode % 50 == 0 and episode != 0:
+    elif model == "D3QN" and episode % plot_every == 0 and episode != 0:
 
       plt.title("D3QN Training Loss")
       plot_1 = sns.lineplot(data = np.array(training_loss_list))
@@ -332,11 +332,17 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
       if competing_AI_mode.lower() == 'minimax':
 
-        AI_strength_boost += 1
+        print("*************** MINIMAX BOOST from depth {} to {} *********************".format(competing_AI_strength +
+          + AI_strength_boost, competing_AI_strength + AI_strength_boost + minimax_boost))
+
+        AI_strength_boost += minimax_boost
       
       elif competing_AI_mode.lower() == "mcts":
 
-        AI_strength_boost += 5000
+        print("*************** MCTS BOOST from number of iterations {} to {} *********************".format(competing_AI_strength +
+          + AI_strength_boost, competing_AI_strength + AI_strength_boost + mcts_boost))
+
+        AI_strength_boost += mcts_boost
 
     # calculate valid_rate
     valid_rate_log.append(valid_count[0]/valid_count[1])
@@ -347,12 +353,13 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   print(win_list)
   print("Agent won {} games out of {}".format(len(win_list), episodes))
   print(valid_rate_log)
+  print("Final AI Strength: {}".format(competing_AI_strength + AI_strength_boost))
   agent.save_all_models()
 
 if __name__ == "__main__":
-  onitama_deeprl_train("train", "DDPG", 20000, "first_attempt", "minimax", 1, discount_rate = 0.99, 
+  onitama_deeprl_train("train", "DDPG", 20000, "second_attempt", "minimax", 1, discount_rate = 0.99, 
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
               use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
-              reward_mode = "simple_reward")
+              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 1000)
