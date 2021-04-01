@@ -267,7 +267,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.title("DDPG Actor Validity Loss")
       plot_2 = sns.lineplot(data = np.array(actor_val_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_ddpg_actor_val_loss_episode_{episode}.pdf', 
             bbox_inches = 'tight')
       plt.close()
@@ -276,7 +276,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.title("DDPG Actor Loss")
       plot_3 = sns.lineplot(data = np.array(actor_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_ddpg_actor_loss_episode_{episode}.pdf', 
             bbox_inches = 'tight')
       plt.close()
@@ -285,18 +285,27 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.title("DDPG Critic Loss")
       plot_4 = sns.lineplot(data = np.array(critic_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_ddpg_critic_loss_episode_{episode}.pdf', 
             bbox_inches = 'tight')
       plt.close()
       plt.show() 
 
+      plt.title("Valid Rate")
+      plot_4 = sns.lineplot(data = np.array(valid_rate_log))
+      plt.ylabel("Valid Rate")
+      plt.xlabel("Number of episodes")
+      plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_valid_rate_episode_{episode}.pdf', 
+            bbox_inches = 'tight')
+      plt.close()
+      plt.show() 
+      
     elif model == "D3QN" and episode % plot_every == 0 and episode != 0:
 
       plt.title("D3QN Training Loss")
       plot_1 = sns.lineplot(data = np.array(training_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_d3qn_training_loss_episode_{episode}.pdf', 
             bbox_inches = 'tight')
       plt.close()
@@ -305,7 +314,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.title("D3QN Validity Loss")
       plot_2 = sns.lineplot(data = np.array(val_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_d3qn_validity_loss_episode_{episode}.pdf', 
             bbox_inches = 'tight')
       plt.close()
@@ -314,8 +323,17 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.title("D3QN Loss")
       plot_3 = sns.lineplot(data = np.array(total_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_d3qn_loss_episode_{episode}.pdf', 
+            bbox_inches = 'tight')
+      plt.close()
+      plt.show() 
+
+      plt.title("Valid Rate")
+      plot_4 = sns.lineplot(data = np.array(valid_rate_log))
+      plt.ylabel("Valid Rate")
+      plt.xlabel("Number of episodes")
+      plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_valid_rate_episode_{episode}.pdf', 
             bbox_inches = 'tight')
       plt.close()
       plt.show() 
@@ -357,9 +375,9 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   agent.save_all_models()
 
 if __name__ == "__main__":
-  onitama_deeprl_train("train", "DDPG", 20000, "second_attempt", "minimax", 1, discount_rate = 0.99, 
+  onitama_deeprl_train("train", "DDPG", 2500, "second_attempt", "randomai", 1, discount_rate = 0.99, 
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
               use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
-              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 1000)
+              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 20)
