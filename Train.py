@@ -99,7 +99,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
         ai_action_index = game.selected_move_index
       # completely random AI
       elif competing_AI_mode.lower() == 'randomai':
-        ai_action_index = random.choice([i for i, x in enumerate(game.check_NN_valid_move_space()) if x == 1])
+        ai_action_index = random.choice([i for i, x in enumerate(val_actions_mask_opponent) if x == 1])
         game.turn_deeprl(ai_action_index)
       else:
         # first turn for MCTS AI (create the AI object first) 
@@ -225,7 +225,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
           game.turn_minimax(minimax_depth = competing_AI_strength + AI_strength_boost, return_move_index = True)
           ai_action_index = game.selected_move_index
         elif competing_AI_mode.lower() == 'randomai':
-          ai_action_index = random.choice([i for i, x in enumerate(game.check_NN_valid_move_space()) if x == 1])
+          ai_action_index = random.choice([i for i, x in enumerate(val_actions_mask_opponent) if x == 1])
           game.turn_deeprl(ai_action_index)
         else:
           # next turn for MCTS AI
