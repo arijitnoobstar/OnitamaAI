@@ -15,7 +15,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
               num_actions = 40, max_mem_size = 1000000, batch_size = 512, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = False,
               use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True,
-              reward_mode = None, minimax_boost = 1, mcts_boost = 5000, plot_every = 500, win_loss_queue_size = 100):
+              reward_mode = None, minimax_boost = 1, mcts_boost = 5000, plot_every = 500, win_loss_queue_size = 100,
+              architecture = "val_after_actions", valid_moving_average = 50):
   
   # create the environment
   game = Onitama(verbose = False)
@@ -30,7 +31,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   # create an instance of the agent
   agent = Agent(model, discount_rate, lr_actor, lr_critic, tau, board_input_shape, card_input_shape, num_actions, 
                  max_mem_size, batch_size, epsilon, epsilon_decay, epsilon_min, update_target, val_constant, 
-                 training_name)
+                 training_name, architecture)
   
   # load model if testing mode
   if mode == "test":
@@ -179,20 +180,19 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
         # apply gradients for learning to reduce loss and append losses to lists
         # try-except added as nothing is returned until batch size is filled
-        try:
-          if model == "DDPG" and mode == "train":
-            actor_training_loss, actor_val_loss, actor_loss, critic_loss = agent.apply_gradients_DDPG()
+        if model == "DDPG" and mode == "train":
+          actor_training_loss, actor_val_loss, actor_loss, critic_loss = agent.apply_gradients_DDPG()
+          if not np.isnan(actor_training_loss):
             actor_training_loss_list.append(actor_training_loss)
             actor_val_loss_list.append(actor_val_loss)
             actor_loss_list.append(actor_loss)
             critic_loss_list.append(critic_loss)
-          elif model == "D3QN" and mode == "train":
-            training_loss, val_loss, total_loss = agent.apply_gradients_D3QN()
+        elif model == "D3QN" and mode == "train":
+          training_loss, val_loss, total_loss = agent.apply_gradients_D3QN()
+          if not np.isnan(training_loss):
             training_loss_list.append(training_loss)
             val_loss_list.append(val_loss)
             total_loss_list.append(total_loss)
-        except:
-          pass
 
       # increment turn
       total_turns += 1
@@ -267,7 +267,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.title("DDPG Actor Training Loss")
       plot_1 = sns.lineplot(data = np.array(actor_training_loss_list))
       plt.ylabel("Loss")
-      plt.xlabel("Number of episodes")
+      plt.xlabel("Number of turns")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_ddpg_actor_training_loss_episode_{episode+1}.pdf', 
             bbox_inches = 'tight')
       plt.close()
@@ -301,7 +301,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.show() 
 
       plt.title("Valid Rate")
-      plot_4 = sns.lineplot(data = np.array(valid_rate_log))
+      plot_5 = sns.lineplot(data = np.convolve(valid_rate_log, np.ones(valid_moving_average)/valid_moving_average, mode='valid'))
       plt.ylabel("Valid Rate")
       plt.xlabel("Number of episodes")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_valid_rate_episode_{episode+1}.pdf', 
@@ -310,7 +310,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.show() 
 
       plt.title("AI Strength")
-      plot_5 = sns.lineplot(data = np.array(ai_strength_log))
+      plot_6 = sns.lineplot(data = np.array(ai_strength_log))
       plt.ylabel("AI Strength")
       plt.xlabel("Number of episodes")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_ai_strength_episode_{episode+1}.pdf', 
@@ -319,7 +319,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.show()       
 
       plt.title("Win vs Loss")
-      plot_6 = sns.lineplot(data = np.array(win_loss_list))
+      plot_7 = sns.lineplot(data = np.array(win_loss_list))
       plt.ylabel("Win/Loss")
       plt.xlabel("Number of episodes")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_win_loss_episode_{episode+1}.pdf', 
@@ -357,7 +357,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.show() 
 
       plt.title("Valid Rate")
-      plot_4 = sns.lineplot(data = np.array(valid_rate_log))
+      plot_5 = sns.lineplot(data = np.convolve(valid_rate_log, np.ones(valid_moving_average)/valid_moving_average, mode='valid'))
       plt.ylabel("Valid Rate")
       plt.xlabel("Number of episodes")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_valid_rate_episode_{episode+1}.pdf', 
@@ -429,9 +429,10 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   agent.save_all_models()
 
 if __name__ == "__main__":
-  onitama_deeprl_train("train", "DDPG", 500, "second_attempt", "minimax", 1, discount_rate = 0.99, 
+  onitama_deeprl_train("train", "DDPG", 100, "second_attempt", "minimax", 1, discount_rate = 0.99, 
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
               use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
-              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every =250, win_loss_queue_size = 100)
+              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 50, win_loss_queue_size = 100,
+              architecture = "actions_after_val_multiply", valid_moving_average = 50)

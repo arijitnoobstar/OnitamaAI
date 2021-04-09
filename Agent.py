@@ -13,7 +13,7 @@ class Agent:
     
     def __init__(self, model, discount_rate, lr_actor, lr_critic, tau, board_input_shape, card_input_shape, num_actions, 
                  max_mem_size, batch_size, epsilon, epsilon_decay, epsilon_min, update_target, val_constant, 
-                 training_name):
+                 training_name, architecture):
         
         # model
         self.model = model
@@ -61,7 +61,7 @@ class Agent:
             self.DDPG_Actor = nn_model(model = "DDPG_Actor", training_name = training_name, learning_rate = self.lr_actor, 
                                        board_input_shape = self.board_input_shape, 
                                        card_input_shape = self.card_input_shape, num_actions = self.num_actions, 
-                                       conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256])
+                                       conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256], architecture = architecture)
             
             # update actor model_names attributes for checkpoints
             self.DDPG_Actor.model_name = "DDPG_Actor"
@@ -74,7 +74,7 @@ class Agent:
             self.DDPG_Target_Actor = nn_model(model = "DDPG_Actor", training_name = training_name, 
                                               learning_rate = self.lr_actor, board_input_shape = self.board_input_shape, 
                                               card_input_shape = self.card_input_shape, num_actions = self.num_actions, 
-                                              conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256])
+                                              conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256], architecture = architecture)
             
             # update target actor model_names attributes for checkpoints
             self.DDPG_Target_Actor.model_name = "DDPG_Target_Actor"
@@ -87,7 +87,7 @@ class Agent:
             self.DDPG_Critic = nn_model(model = "DDPG_Critic", training_name = training_name, 
                                         learning_rate = self.lr_critic, board_input_shape = self.board_input_shape, 
                                         card_input_shape = self.card_input_shape, num_actions = self.num_actions, 
-                                        conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256])
+                                        conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256], architecture = architecture)
             
             # update critic model_names attributes for checkpoints
             self.DDPG_Critic.model_name = "DDPG_Critic"
@@ -100,7 +100,7 @@ class Agent:
             self.DDPG_Target_Critic = nn_model(model = "DDPG_Critic", training_name = training_name, 
                                                learning_rate = self.lr_critic, board_input_shape = self.board_input_shape, 
                                                card_input_shape = self.card_input_shape, num_actions = self.num_actions, 
-                                               conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256])
+                                               conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256], architecture = architecture)
 
             # update target critic model_names attributes for checkpoints
             self.DDPG_Target_Critic.model_name = "DDPG_Target_Critic"
@@ -146,7 +146,7 @@ class Agent:
             self.D3QN_q_eval = nn_model(model = "D3QN", training_name = training_name, learning_rate = self.lr_actor, 
                                         board_input_shape = self.board_input_shape, 
                                         card_input_shape = self.card_input_shape, num_actions = self.num_actions, 
-                                        conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256])
+                                        conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256], architecture = architecture)
             
             # update q eval attributes for checkpoints
             self.D3QN_q_eval.model_name = "D3QN_q_eval"
@@ -159,7 +159,7 @@ class Agent:
             self.D3QN_q_target = nn_model(model = "D3QN", training_name = training_name, learning_rate = self.lr_actor, 
                                           board_input_shape = self.board_input_shape, 
                                           card_input_shape = self.card_input_shape, num_actions = self.num_actions, 
-                                          conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256])
+                                          conv_output_sizes = [64, 128], post_conc_fc_output_sizes = [512, 256], architecture = architecture)
             
             # update q eval attributes for checkpoints
             self.D3QN_q_target.model_name = "D3QN_q_target"
@@ -261,7 +261,7 @@ class Agent:
 
         # doesnt not apply gradients if memory does not have at least batch_size number of logs
         if self.memory.mem_counter < self.batch_size:
-            return
+            return np.nan, np.nan, np.nan, np.nan
         
         # randomly sample batch of memory of board_state, card_state, action, reward, board_state_prime, 
         # card_state_prime, terminal flag from memory log
@@ -364,7 +364,6 @@ class Agent:
             
                 self.update_ddpg_target_models(tau = 1)
 
-        
         return actor_training_loss.item(), actor_val_loss.item(), actor_loss.item(), critic_loss.item()
 
     def apply_gradients_D3QN(self):
@@ -374,8 +373,7 @@ class Agent:
         
         # doesnt not apply gradients if memory does not have at least batch_size number of logs
         if self.memory.mem_counter < self.batch_size:
-            
-            return
+            return np.nan, np.nan, np.nan
         
         # randomly sample batch of memory of board_state, card_state, action, reward, board_state_prime, 
         # card_state_prime, terminal flag from memory log
@@ -471,6 +469,7 @@ class Agent:
             if self.apply_grad_counter % self.update_target == 0: 
 
                 self.update_d3qn_target_model(tau = 1)
+
 
         return training_loss.item(), val_loss.item(), loss.item()
         

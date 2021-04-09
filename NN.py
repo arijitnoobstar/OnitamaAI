@@ -4,17 +4,17 @@ from replay_buffer import *
 """ 
 Classes and functions to build scalable model
 """
-"""
 class Multiply(nn.Module):
   def __init__(self):
     super(Multiply, self).__init__()
 
   def forward(self, tensors):
-    result = torch.ones(tensors[0].size())
+    result = T.ones(tensors[0].size())
     for t in tensors:
-      result *= t
+      result = result * t
+
+    t = t / T.sum(t)
     return t
-"""
 
 class conv_2d_auto_padding(nn.Conv2d):
     
@@ -205,7 +205,7 @@ class nn_model(nn.Module):
     """ class to build model for DDPG, D3QN """
     
     def __init__(self, model, training_name, learning_rate, board_input_shape, card_input_shape, num_actions, 
-                 conv_output_sizes, post_conc_fc_output_sizes):
+                 conv_output_sizes, post_conc_fc_output_sizes, architecture):
         
         # inherit class constructor attributes from nn.Module
         super().__init__()
@@ -247,6 +247,9 @@ class nn_model(nn.Module):
         
         # list of sizes of output shape for fc in fc layer post concatenation
         self.post_conc_fc_output_sizes = post_conc_fc_output_sizes
+
+        # specified architecture to handle validity
+        self.architecture = architecture
         
         # conv layers pre concatenation for board state
         self.board_conv_layers = nn_layers(input_channels = board_input_shape[0], block = vgg_block, output_channels = 
@@ -283,12 +286,20 @@ class nn_model(nn.Module):
                                                  activation_func = 'relu', dropout_p = 0)
             
             # single fc block post concatenation to output softmaxed actions
-            self.softmax_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions, 
+            if "val_after_actions" in architecture.lower() or "branch" in architecture.lower():
+                self.softmax_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions, 
+                                           activation_func = 'softmax', dropout_p = 0)
+            elif "actions_after_val" in architecture.lower():
+                self.softmax_output = fc_block(input_shape = num_actions, output_shape = num_actions, 
                                            activation_func = 'softmax', dropout_p = 0)
             
-            # final single fc block post concatenation to output validity of actions
-            self.val_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions,
-                                         activation_func = 'sigmoid', dropout_p = 0)
+            # single fc block post concatenation to output validity of actions
+            if "actions_after_val" in architecture.lower() or "branch" in architecture.lower():
+                self.val_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions,
+                                             activation_func = 'sigmoid', dropout_p = 0)
+            elif "val_after_actions" in architecture.lower():
+                self.val_output = fc_block(input_shape = num_actions, output_shape = num_actions,
+                                             activation_func = 'sigmoid', dropout_p = 0)
         
         elif self.model == "D3QN":
             
@@ -363,12 +374,21 @@ class nn_model(nn.Module):
             # intermediate tensor --> fc linear layers
             conc = self.post_conc_fc_layers(conc)
 
-            # fc linear layers --> softmax actions
-            actions = self.softmax_output(conc)
+            # determine the next part of the architecture
+            if "val_after_actions" in self.architecture.lower():
+                actions = self.softmax_output(conc)
+                val = self.val_output(actions)
+            elif "actions_after_val" in self.architecture.lower():
+                val = self.val_output(conc)
+                actions = self.softmax_output(val)
+            elif "branch" in self.architecture.lower():
+                actions = self.softmax_output(conc)
+                val = self.val_output(conc)
 
-            # fc linear layers --> validity of actions 
-            val = self.val_output(conc)
-            # val = self.val_output(actions)
+            if "multiply" in self.architecture.lower():
+                # multiply validity to actions
+                multiply = Multiply()
+                actions = multiply([actions, val])
             
             return actions, val
         
