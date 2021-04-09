@@ -9,7 +9,8 @@ class Multiply(nn.Module):
     super(Multiply, self).__init__()
 
   def forward(self, tensors):
-    result = T.ones(tensors[0].size())
+
+    result = T.ones(tensors[0].size(), device = T.device('cuda:0' if T.cuda.is_available() else 'cpu'))
     for t in tensors:
       result = result * t
 
@@ -300,6 +301,10 @@ class nn_model(nn.Module):
             elif "val_after_actions" in architecture.lower():
                 self.val_output = fc_block(input_shape = num_actions, output_shape = num_actions,
                                              activation_func = 'sigmoid', dropout_p = 0)
+            # multiply layer 
+            if "multiply" in architecture.lower():
+                self.multiply = Multiply()
+
         
         elif self.model == "D3QN":
             
@@ -387,8 +392,7 @@ class nn_model(nn.Module):
 
             if "multiply" in self.architecture.lower():
                 # multiply validity to actions
-                multiply = Multiply()
-                actions = multiply([actions, val])
+                actions = self.multiply([actions, val])
             
             return actions, val
         
