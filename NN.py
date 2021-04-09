@@ -4,6 +4,17 @@ from replay_buffer import *
 """ 
 Classes and functions to build scalable model
 """
+"""
+class Multiply(nn.Module):
+  def __init__(self):
+    super(Multiply, self).__init__()
+
+  def forward(self, tensors):
+    result = torch.ones(tensors[0].size())
+    for t in tensors:
+      result *= t
+    return t
+"""
 
 class conv_2d_auto_padding(nn.Conv2d):
     
@@ -276,8 +287,8 @@ class nn_model(nn.Module):
                                            activation_func = 'softmax', dropout_p = 0)
             
             # final single fc block post concatenation to output validity of actions
-            self.val_output = fc_block(input_shape = num_actions, output_shape = num_actions, activation_func = 'sigmoid', 
-                                       dropout_p = 0)
+            self.val_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions,
+                                         activation_func = 'sigmoid', dropout_p = 0)
         
         elif self.model == "D3QN":
             
@@ -308,7 +319,7 @@ class nn_model(nn.Module):
         # cast module to device
         self.to(self.device)
         
-    def forward(self, board_state, card_state, actions, sukmydik = False):
+    def forward(self, board_state, card_state, actions):
             
         """ function for forward pass through critic_model """
         
@@ -355,9 +366,10 @@ class nn_model(nn.Module):
             # fc linear layers --> softmax actions
             actions = self.softmax_output(conc)
 
-            # softmax actions --> validity of actions 
-            val = self.val_output(actions)
-
+            # fc linear layers --> validity of actions 
+            val = self.val_output(conc)
+            # val = self.val_output(actions)
+            
             return actions, val
         
         # forward pass for d3qn

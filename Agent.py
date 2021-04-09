@@ -282,19 +282,16 @@ class Agent:
         self.DDPG_Critic.eval()
         self.DDPG_Target_Actor.eval()
         self.DDPG_Target_Critic.eval()
-        
+
         # obtain actions (softmax) from target actor for board_states_prime and card_states_prime
-        target_actions, _ = self.DDPG_Target_Actor.forward(board_states_prime, card_states_prime, None, True)
-        
+        target_actions, _ = self.DDPG_Target_Actor.forward(board_states_prime, card_states_prime, None)
         # obtain critic q value by feeding critic with board_states_prime, card_states_prime and target_actions (softmax) 
         target_critic_value = self.DDPG_Target_Critic.forward(board_states_prime, card_states_prime, target_actions)
         
         # obtain critic q value by feeding critic with board_states, card_states and actions (softmax) 
         critic_value = self.DDPG_Critic.forward(board_states, card_states, actions)
-        
         # initialise empty list for td_target
         td_target = []
-        
         # iterate over each batch 
         for i in range(self.batch_size):
             
@@ -366,6 +363,7 @@ class Agent:
             if self.apply_grad_counter % self.update_target == 0: 
             
                 self.update_ddpg_target_models(tau = 1)
+
         
         return actor_training_loss.item(), actor_val_loss.item(), actor_loss.item(), critic_loss.item()
 
