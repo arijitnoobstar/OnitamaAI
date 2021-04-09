@@ -1,4 +1,5 @@
 # access Train.py in parent folder and set relative folder to parent folder for data saving
+
 import os
 import sys
 os.chdir("..")
@@ -18,7 +19,7 @@ plot_every = 1000
 moving_average = 50
 minimax_boost = 1
 
-onitama_deeprl_train("train", "DDPG", ep_num, "val_after_actions", "minimax", 1, discount_rate = 0.99, 
+onitama_deeprl_train("train", "DDPG", ep_num, "lr_0.1", "minimax", 1, discount_rate = 0.99, 
             lr_actor = 0.1, lr_critic = 0.1, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
             num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
             epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
@@ -26,7 +27,7 @@ onitama_deeprl_train("train", "DDPG", ep_num, "val_after_actions", "minimax", 1,
             reward_mode = "simple_reward", minimax_boost = minimax_boost, mcts_boost = 5000, plot_every = plot_every, win_loss_queue_size = 100,
             architecture = "val_branch_actions", moving_average = moving_average, verbose = False)
 
-onitama_deeprl_train("train", "DDPG", ep_num, "val_after_actions_multiply", "minimax", 1, discount_rate = 0.99, 
+onitama_deeprl_train("train", "DDPG", ep_num, "lr_0.01", "minimax", 1, discount_rate = 0.99, 
           lr_actor = 0.01, lr_critic = 0.01, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
           num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
           epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
@@ -34,7 +35,7 @@ onitama_deeprl_train("train", "DDPG", ep_num, "val_after_actions_multiply", "min
           reward_mode = "simple_reward", minimax_boost = minimax_boost, mcts_boost = 5000, plot_every = plot_every, win_loss_queue_size = 100,
           architecture = "val_branch_actions", moving_average = moving_average, verbose = False)
 
-onitama_deeprl_train("train", "DDPG", ep_num, "val_branch_actions", "minimax", 1, discount_rate = 0.99, 
+onitama_deeprl_train("train", "DDPG", ep_num, "lr_0.001", "minimax", 1, discount_rate = 0.99, 
           lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
           num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
           epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
