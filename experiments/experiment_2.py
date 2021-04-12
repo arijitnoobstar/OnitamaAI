@@ -19,8 +19,8 @@ plot_every = 1000
 moving_average = 50
 minimax_boost = 1
 
-onitama_deeprl_train("train", "DDPG", ep_num, "lr_0.1", "minimax", 1, discount_rate = 0.99, 
-            lr_actor = 0.1, lr_critic = 0.1, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
+onitama_deeprl_train("train", "DDPG", ep_num, "lr_0.05", "minimax", 1, discount_rate = 0.99, 
+            lr_actor = 0.05, lr_critic = 0.05, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
             num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
             epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
             use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
