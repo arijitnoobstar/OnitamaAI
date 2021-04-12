@@ -20,6 +20,9 @@ class Agent:
         
         # discount rate for critic loss (TD error)
         self.discount_rate = discount_rate
+
+        # architecture for neural network
+        self.architecture = architecture
         
         # learning rate for actor model
         self.lr_actor = lr_actor
@@ -326,8 +329,12 @@ class Agent:
         self.DDPG_Actor.optimizer.zero_grad()
         
         # obtain actions (softmax) from state following different policy 
-        softmax_output, val_output = self.DDPG_Actor.forward(board_states, card_states, None)
-        
+        if "actions_only" in self.architecture.lower():
+            softmax_output, _ = self.DDPG_Actor.forward(board_states, card_states, None)
+            val_output = T.clone(val_actions_masks)
+        else:
+            softmax_output, val_output = self.DDPG_Actor.forward(board_states, card_states, None)
+
         # set actor model to train mode 
         self.DDPG_Actor.train()
         

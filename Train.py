@@ -324,7 +324,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.show()       
 
       plt.title("Win vs Loss: {}/{}".format(sum(win_loss_list), episode + 1))
-      plot_7 = sns.lineplot(data = np.array(win_loss_list))
+      plot_7 = sns.lineplot(data = np.convolve(win_loss_list, np.ones(moving_average)/moving_average, mode='valid'))
       plt.ylabel("Win/Loss")
       plt.xlabel("Number of episodes")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_win_loss_episode_{episode+1}.pdf', 
@@ -380,7 +380,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       plt.show()    
 
       plt.title("Win vs Loss: {}/{}".format(sum(win_loss_list), episode + 1))
-      plot_6 = sns.lineplot(data = np.array(win_loss_list))
+      plot_6 = sns.lineplot(data = np.convolve(win_loss_list, np.ones(moving_average)/moving_average, mode='valid'))
       plt.ylabel("Win/Loss")
       plt.xlabel("Number of episodes")
       plt.savefig("Training_Plots/" + training_name  + "/" + training_name + f'_win_loss_episode_{episode+1}.pdf', 
@@ -441,10 +441,10 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
 if __name__ == "__main__":
 
-  onitama_deeprl_train("train", "DDPG", 1000, "second_attempt", "minimax", 1, discount_rate = 0.99, 
+  onitama_deeprl_train("train", "DDPG", 100, "second_attempt", "minimax", 1, discount_rate = 0.99, 
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
               use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
-              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 250, win_loss_queue_size = 100,
-              architecture = "val_after_actions", moving_average = 50, verbose = True)
+              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 50, win_loss_queue_size = 100,
+              architecture = "dual", moving_average = 25, verbose = False)

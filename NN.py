@@ -251,24 +251,54 @@ class nn_model(nn.Module):
 
         # specified architecture to handle validity
         self.architecture = architecture
-        
-        # conv layers pre concatenation for board state
-        self.board_conv_layers = nn_layers(input_channels = board_input_shape[0], block = vgg_block, output_channels = 
-                                           self.conv_output_sizes, activation_func = 'relu', conv = 
-                                           partial(conv_2d_auto_padding, kernel_size = 3, bias = False) , dropout_p = 0, 
-                                           max_pool_kernel = 2)
 
-        # single fc block pre concatenation for card state
-        self.card_fc_block = fc_block(input_shape = card_input_shape, output_shape = card_input_shape, 
-                                           activation_func = 'relu', dropout_p = 0)
+        if "dual" in architecture.lower():
+
+            # conv layers pre concatenation for board state
+            self.board_conv_layers_actions = nn_layers(input_channels = board_input_shape[0], block = vgg_block, output_channels = 
+                                               self.conv_output_sizes, activation_func = 'relu', conv = 
+                                               partial(conv_2d_auto_padding, kernel_size = 3, bias = False) , dropout_p = 0, 
+                                               max_pool_kernel = 2)
+
+            # single fc block pre concatenation for card state
+            self.card_fc_block_actions = fc_block(input_shape = card_input_shape, output_shape = card_input_shape, 
+                                               activation_func = 'relu', dropout_p = 0)
+
+            # conv layers pre concatenation for board state
+            self.board_conv_layers_val = nn_layers(input_channels = board_input_shape[0], block = vgg_block, output_channels = 
+                                               self.conv_output_sizes, activation_func = 'relu', conv = 
+                                               partial(conv_2d_auto_padding, kernel_size = 3, bias = False) , dropout_p = 0, 
+                                               max_pool_kernel = 2)
+
+            # single fc block pre concatenation for card state
+            self.card_fc_block_val = fc_block(input_shape = card_input_shape, output_shape = card_input_shape, 
+                                               activation_func = 'relu', dropout_p = 0)
+
+        else:
+            # conv layers pre concatenation for board state
+            self.board_conv_layers = nn_layers(input_channels = board_input_shape[0], block = vgg_block, output_channels = 
+                                               self.conv_output_sizes, activation_func = 'relu', conv = 
+                                               partial(conv_2d_auto_padding, kernel_size = 3, bias = False) , dropout_p = 0, 
+                                               max_pool_kernel = 2)
+
+            # single fc block pre concatenation for card state
+            self.card_fc_block = fc_block(input_shape = card_input_shape, output_shape = card_input_shape, 
+                                               activation_func = 'relu', dropout_p = 0)
         
         if self.model == "DDPG_Critic":
             
-            # fc layers post concatenation
-            self.post_conc_fc_layers = nn_layers(input_channels = self.card_input_shape + self.num_actions + \
-                                                 self.board_conv_layers.get_flat_output_shape(self.board_input_shape), 
-                                                 block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
-                                                 activation_func = 'relu', dropout_p = 0)
+            if "dual" in architecture.lower():
+
+                self.post_conc_fc_layers = nn_layers(input_channels = self.card_input_shape + self.num_actions + \
+                                                     self.board_conv_layers_actions.get_flat_output_shape(self.board_input_shape), 
+                                                     block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
+                                                     activation_func = 'relu', dropout_p = 0)
+            else:
+                # fc layers post concatenation
+                self.post_conc_fc_layers = nn_layers(input_channels = self.card_input_shape + self.num_actions + \
+                                                     self.board_conv_layers.get_flat_output_shape(self.board_input_shape), 
+                                                     block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
+                                                     activation_func = 'relu', dropout_p = 0)
             
             # single fc block pre concatenation for actions
             self.actions_fc_block = fc_block(input_shape = num_actions, output_shape = num_actions, 
@@ -280,30 +310,61 @@ class nn_model(nn.Module):
         
         elif self.model == "DDPG_Actor":
             
-            # fc layers post concatenation
-            self.post_conc_fc_layers = nn_layers(input_channels = self.card_input_shape + \
-                                                 self.board_conv_layers.get_flat_output_shape(self.board_input_shape), 
-                                                 block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
-                                                 activation_func = 'relu', dropout_p = 0)
-            
-            # single fc block post concatenation to output softmaxed actions
-            if "val_after_actions" in architecture.lower() or "branch" in architecture.lower():
+            if "dual" in architecture.lower():
+
+                self.post_conc_fc_layers_actions = nn_layers(input_channels = self.card_input_shape + \
+                                                     self.board_conv_layers_actions.get_flat_output_shape(self.board_input_shape), 
+                                                     block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
+                                                     activation_func = 'relu', dropout_p = 0)
+
+                self.post_conc_fc_layers_val = nn_layers(input_channels = self.card_input_shape + \
+                                                     self.board_conv_layers_val.get_flat_output_shape(self.board_input_shape), 
+                                                     block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
+                                                     activation_func = 'relu', dropout_p = 0)
+
                 self.softmax_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions, 
                                            activation_func = 'softmax', dropout_p = 0)
-            elif "actions_after_val" in architecture.lower():
-                self.softmax_output = fc_block(input_shape = num_actions, output_shape = num_actions, 
-                                           activation_func = 'softmax', dropout_p = 0)
-            
-            # single fc block post concatenation to output validity of actions
-            if "actions_after_val" in architecture.lower() or "branch" in architecture.lower():
+
                 self.val_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions,
                                              activation_func = 'sigmoid', dropout_p = 0)
-            elif "val_after_actions" in architecture.lower():
-                self.val_output = fc_block(input_shape = num_actions, output_shape = num_actions,
-                                             activation_func = 'sigmoid', dropout_p = 0)
-            # multiply layer 
-            if "multiply" in architecture.lower():
+
                 self.multiply = Multiply()
+
+            elif "actions_only" in architecture.lower():
+
+                self.post_conc_fc_layers = nn_layers(input_channels = self.card_input_shape + \
+                                                     self.board_conv_layers.get_flat_output_shape(self.board_input_shape), 
+                                                     block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
+                                                     activation_func = 'relu', dropout_p = 0)
+
+                self.softmax_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions, 
+                                               activation_func = 'softmax', dropout_p = 0)
+
+            else:
+                # fc layers post concatenation
+                self.post_conc_fc_layers = nn_layers(input_channels = self.card_input_shape + \
+                                                     self.board_conv_layers.get_flat_output_shape(self.board_input_shape), 
+                                                     block = fc_block, output_channels = self.post_conc_fc_output_sizes, 
+                                                     activation_func = 'relu', dropout_p = 0)
+                
+                # single fc block post concatenation to output softmaxed actions
+                if "val_after_actions" in architecture.lower() or "branch" in architecture.lower():
+                    self.softmax_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions, 
+                                               activation_func = 'softmax', dropout_p = 0)
+                elif "actions_after_val" in architecture.lower():
+                    self.softmax_output = fc_block(input_shape = num_actions, output_shape = num_actions, 
+                                               activation_func = 'softmax', dropout_p = 0)
+                
+                # single fc block post concatenation to output validity of actions
+                if "actions_after_val" in architecture.lower() or "branch" in architecture.lower():
+                    self.val_output = fc_block(input_shape = self.post_conc_fc_output_sizes[-1], output_shape = num_actions,
+                                                 activation_func = 'sigmoid', dropout_p = 0)
+                elif "val_after_actions" in architecture.lower():
+                    self.val_output = fc_block(input_shape = num_actions, output_shape = num_actions,
+                                                 activation_func = 'sigmoid', dropout_p = 0)
+                # multiply layer 
+                if "multiply" in architecture.lower():
+                    self.multiply = Multiply()
 
         
         elif self.model == "D3QN":
@@ -342,12 +403,20 @@ class nn_model(nn.Module):
         # forward pass for ddpg critic model
         if self.model == "DDPG_Critic":
             
-            # board_state --> conv --> flatten 
-            board_state = self.board_conv_layers(board_state)
-            board_state_flat = board_state.view(board_state.size(0), -1)
+            if "dual" in self.architecture.lower():
+                # board_state --> conv --> flatten 
+                board_state = self.board_conv_layers_actions(board_state)
+                board_state_flat = board_state.view(board_state.size(0), -1)
 
-            # card_state --> linear 
-            card_state = self.card_fc_block(card_state)
+                # card_state --> linear 
+                card_state = self.card_fc_block_actions(card_state)
+            else:
+                # board_state --> conv --> flatten 
+                board_state = self.board_conv_layers(board_state)
+                board_state_flat = board_state.view(board_state.size(0), -1)
+
+                # card_state --> linear 
+                card_state = self.card_fc_block(card_state)
 
             # actions --> linear 
             actions = self.actions_fc_block(actions)
@@ -366,33 +435,88 @@ class nn_model(nn.Module):
         # forward pass for ddpg actor model
         elif self.model == "DDPG_Actor":
 
-            # board_state --> conv --> flatten 
-            board_state = self.board_conv_layers(board_state)
-            board_state_flat = board_state.view(board_state.size(0), -1)
+            if "dual" in self.architecture.lower():
+                
+                # board_state --> conv --> flatten 
+                board_state_actions = self.board_conv_layers_actions(board_state)
+                board_state_flat_actions = board_state_actions.view(board_state_actions.size(0), -1)
 
-            # card_state --> linear 
-            card_state = self.card_fc_block(card_state)
+                # card_state --> linear 
+                card_state_actions = self.card_fc_block_actions(card_state)
 
-            # concatenate intermediate tensors
-            conc = T.cat((board_state_flat, card_state), 1)
+                # concatenate intermediate tensors
+                conc_actions = T.cat((board_state_flat_actions, card_state_actions), 1)
 
-            # intermediate tensor --> fc linear layers
-            conc = self.post_conc_fc_layers(conc)
+                # board_state --> conv --> flatten 
+                board_state_val = self.board_conv_layers_val(board_state)
+                board_state_flat_val = board_state_val.view(board_state_val.size(0), -1)
 
-            # determine the next part of the architecture
-            if "val_after_actions" in self.architecture.lower():
-                actions = self.softmax_output(conc)
-                val = self.val_output(actions)
-            elif "actions_after_val" in self.architecture.lower():
-                val = self.val_output(conc)
-                actions = self.softmax_output(val)
-            elif "branch" in self.architecture.lower():
-                actions = self.softmax_output(conc)
-                val = self.val_output(conc)
+                # card_state --> linear 
+                card_state_val = self.card_fc_block_val(card_state)
 
-            if "multiply" in self.architecture.lower():
-                # multiply validity to actions
+                # concatenate intermediate tensors
+                conc_val = T.cat((board_state_flat_val, card_state_val), 1)
+
+                # intermediate tensor --> actions fc linear layers
+                conc_actions = self.post_conc_fc_layers_actions(conc_actions)
+
+                # intermediate tensor --> actions fc linear layers
+                conc_val = self.post_conc_fc_layers_val(conc_val)
+
+                actions = self.softmax_output(conc_actions)
+
+                val = self.val_output(conc_val)
+
                 actions = self.multiply([actions, val])
+
+            elif "actions_only" in self.architecture.lower():
+
+                board_state = self.board_conv_layers(board_state)
+                board_state_flat = board_state.view(board_state.size(0), -1)
+
+                # card_state --> linear 
+                card_state = self.card_fc_block(card_state)
+
+                # concatenate intermediate tensors
+                conc = T.cat((board_state_flat, card_state), 1)
+
+                # intermediate tensor --> actions fc linear layers
+                conc = self.post_conc_fc_layers(conc)
+
+                actions = self.softmax_output(conc)
+
+                # dummy val variable
+                val = T.clone(actions)
+
+            else:
+
+                # board_state --> conv --> flatten 
+                board_state = self.board_conv_layers(board_state)
+                board_state_flat = board_state.view(board_state.size(0), -1)
+
+                # card_state --> linear 
+                card_state = self.card_fc_block(card_state)
+
+                # concatenate intermediate tensors
+                conc = T.cat((board_state_flat, card_state), 1)
+
+                # intermediate tensor --> fc linear layers
+                conc = self.post_conc_fc_layers(conc)
+
+                # determine the next part of the architecture
+                if "val_after_actions" in self.architecture.lower():
+                    actions = self.softmax_output(conc)
+                    val = self.val_output(actions)
+                elif "actions_after_val" in self.architecture.lower():
+                    val = self.val_output(conc)
+                    actions = self.softmax_output(val)
+                elif "branch" in self.architecture.lower():
+                    actions = self.softmax_output(conc)
+                    val = self.val_output(conc)
+
+                if "multiply" in self.architecture.lower():
+                    # multiply validity to actions
+                    actions = self.multiply([actions, val])
             
             return actions, val
         
