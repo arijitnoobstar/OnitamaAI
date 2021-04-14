@@ -1499,8 +1499,8 @@ class Onitama:
     for the current player's turn """
 
     # initialise the two arrays to zero
-    # board state array of shape (4,5,5) --> channel, i, j
-    board_state = np.zeros([1,4,5,5])
+    # board state array of shape (10,5,5) --> channel, i, j
+    board_state = np.zeros([1,10,5,5])
     # card state array of shape (1,48) --> 16 own card, 16 side card, 16 opponent card
     if use_hardcoded:
       card_state = np.zeros([1,10])
@@ -1509,26 +1509,27 @@ class Onitama:
 
     if perspective == 'red' or (perspective == None and self.whose_turn == "red"):
 
-      # first gather the 4x5x5 board state data 
-      # First channel is master piece of current player (1 represents location of master piece while 0 does not)
-      if self.piece_state['R'] != -1:
-        board_state[0][0][self.piece_state['R'][0]][self.piece_state['R'][1]] = 1
+      # first gather the 10x5x5 board state data 
 
-      # Second channel has information on pawns of current player
+      # First to Fourth channel has information on pawns of current player
       for i in range(4): # loop through the 4 pawns
         piece = 'r'+ str(i+1)
         if self.piece_state[piece] != -1: # ensure piece is not dead
-          board_state[0][1][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
+          board_state[0][i][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
 
-      # Third channel is the master piece of the opponent
-      if self.piece_state['B'] != -1:
-        board_state[0][2][self.piece_state['B'][0]][self.piece_state['B'][1]] = 1
+      # Fifth channel is master piece of current player (1 represents location of master piece while 0 does not)
+      if self.piece_state['R'] != -1:
+        board_state[0][4][self.piece_state['R'][0]][self.piece_state['R'][1]] = 1
 
-      # Fourth channel has information on pawns of opponent player
+      # Sixth to Ninth channel has information on pawns of opponent player
       for i in range(4): # loop through the 4 pawns
         piece = 'b'+ str(i+1)
         if self.piece_state[piece] != -1: # ensure piece is not dead
-          board_state[0][3][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
+          board_state[0][i+5][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
+
+      # Tenth channel is the master piece of the opponent
+      if self.piece_state['B'] != -1:
+        board_state[0][9][self.piece_state['B'][0]][self.piece_state['B'][1]] = 1
 
       if use_hardcoded:
         card_state[0][list(self.hardcoded_cards.keys()).index(self.red_cards[0])] = 1
@@ -1550,25 +1551,25 @@ class Onitama:
     else:
 
       # first gather the 4x5x5 board state data 
-      # First channel is master piece of current player (1 represents location of master piece while 0 does not)
-      if self.piece_state['B'] != -1:
-        board_state[0][0][self.piece_state['B'][0]][self.piece_state['B'][1]] = 1
-
-      # Second channel has information on pawns of current player
+      # First to Fourth channel has information on pawns of current player
       for i in range(4): # loop through the 4 pawns
         piece = 'b'+ str(i+1)
         if self.piece_state[piece] != -1: # ensure piece is not dead
-          board_state[0][1][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
+          board_state[0][i][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
 
-      # Third channel is the master piece of the opponent
-      if self.piece_state['R'] != -1:
-        board_state[0][2][self.piece_state['R'][0]][self.piece_state['R'][1]] = 1
+      # Fifth channel is master piece of current player (1 represents location of master piece while 0 does not)
+      if self.piece_state['B'] != -1:
+        board_state[0][4][self.piece_state['B'][0]][self.piece_state['B'][1]] = 1
 
-      # Fourth channel has information on pawns of opponent player
+      # Sixth to Ninth channel has information on pawns of opponent player
       for i in range(4): # loop through the 4 pawns
         piece = 'r'+ str(i+1)
         if self.piece_state[piece] != -1: # ensure piece is not dead
-          board_state[0][3][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
+          board_state[0][i+5][self.piece_state[piece][0]][self.piece_state[piece][1]] = 1
+
+      # Tenth channel is the master piece of the opponent
+      if self.piece_state['R'] != -1:
+        board_state[0][9][self.piece_state['R'][0]][self.piece_state['R'][1]] = 1
 
       if use_hardcoded:
         card_state[0][list(self.hardcoded_cards.keys()).index(self.blue_cards[0])] = 1

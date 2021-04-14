@@ -13,7 +13,7 @@ import pandas as pd
 # This use of a bot/AI as a competitor allows for no human labour or intervention
 
 def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode, competing_AI_strength, discount_rate = 0.99, 
-              lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 48, 
+              lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [10, 5, 5], card_input_shape = 48, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 512, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = False,
               use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True,
@@ -452,12 +452,12 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       valid_rate_freeze = None
 
 
-    # if((episode + 1) % 100 == 0):
-    #   print("Average number of valid moves per turn from a database of {} turns: {}"
-    #     .format(len(onitama_valid_count), sum(onitama_valid_count)/len(onitama_valid_count)))
-    #   print("Minimim: {}".format(min(onitama_valid_count)))
-    #   print("Maximum: {}".format(max(onitama_valid_count)))
-    #   print("Median: {}".format(statistics.median(onitama_valid_count)))
+    if((episode + 1) % 100 == 0):
+      print("Average number of valid moves per turn from a database of {} turns: {}"
+        .format(len(onitama_valid_count), sum(onitama_valid_count)/len(onitama_valid_count)))
+      print("Minimim: {}".format(min(onitama_valid_count)))
+      print("Maximum: {}".format(max(onitama_valid_count)))
+      print("Median: {}".format(statistics.median(onitama_valid_count)))
 
   # print win list
   print(win_list)
@@ -481,8 +481,9 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
 if __name__ == "__main__":
 
-  onitama_deeprl_train("train", "DDPG", 20000, "second_attempt", "minimax", 1, discount_rate = 0.99, 
-              lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
+  # NOTE I SET MINIMAX BOOST TO 0
+  onitama_deeprl_train("train", "DDPG", 10000, "second_attempt", "minimax", 1, discount_rate = 0.99, 
+              lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [10, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
               use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
