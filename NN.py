@@ -4,6 +4,13 @@ from replay_buffer import *
 """ 
 Classes and functions to build scalable model
 """
+
+# function freeze all parameters (weights and biases) of a model
+def freeze_model(model):
+    for p in model.parameters():
+        p.requires_grad = False
+
+
 class Multiply(nn.Module):
   def __init__(self):
     super(Multiply, self).__init__()

@@ -18,7 +18,7 @@ plot_every = 4000
 moving_average = 50
 minimax_boost = 1
 
-onitama_deeprl_train("train", "DDPG", ep_num, "testing_actions_only", "minimax", 1, discount_rate = 0.99, 
+onitama_deeprl_train("train", "DDPG", ep_num, "longrun_actions_only", "minimax", 1, discount_rate = 0.99, 
           lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
           num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
           epsilon_min = 0.01, update_target = None, val_constant = 5, invalid_penalty = 500, hand_of_god = True,

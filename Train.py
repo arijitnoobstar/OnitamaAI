@@ -18,7 +18,7 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = False,
               use_competing_AI_replay = True, win_loss_mem_size = 1000, desired_win_ratio = 0.9, use_hardcoded_cards = True,
               reward_mode = None, minimax_boost = 1, mcts_boost = 5000, plot_every = 500, win_loss_queue_size = 100,
-              architecture = "val_after_actions", moving_average = 50, verbose = True):
+              architecture = "val_after_actions", moving_average = 50, verbose = True, valid_rate_freeze = None):
   
   # create the environment
   game = Onitama(verbose = False)
@@ -70,6 +70,9 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   # ai strength log
   ai_strength_log = []
 
+  # onitama_valid_count
+  onitama_valid_count = []
+
   # lists to store losses 
   if model == "DDPG":
     
@@ -98,6 +101,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
     if game.whose_turn == 'red':
       # record valid actions for opponent
       val_actions_mask_opponent = game.check_NN_valid_move_space()
+      # record number of valid moves
+      onitama_valid_count.append(sum(val_actions_mask_opponent))
       # record the state of the opponent
       if use_competing_AI_replay:
         opponent_board_state_prime, opponent_card_state_prime = game.return_NN_state(perspective = 'red', use_hardcoded = use_hardcoded_cards)
@@ -145,6 +150,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
       is_invalid_counter = 0
       # get a list of valid actions (1 for valid and 0 otherwise)
       val_actions_mask = game.check_NN_valid_move_space()
+      # record number of valid moves
+      onitama_valid_count.append(sum(val_actions_mask))
 
       while is_valid_action == 0:
 
@@ -228,6 +235,8 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
 
       # record valid actions for opponent
       val_actions_mask_opponent = game.check_NN_valid_move_space()
+      # record number of valid moves
+      onitama_valid_count.append(sum(val_actions_mask_opponent))
 
       # Let the competing AI make its responsive turn if game has not terminated
       if not game.isTerminal():
@@ -426,6 +435,30 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
     # reset the game
     game.reset()
 
+    if ("DDPG" in model and valid_rate_freeze != None and "dual" in architecture.lower() and 
+      len(valid_rate_log) >= win_loss_queue_size and sum(valid_rate_log[-1*(win_loss_queue_size+1):-1])
+      /win_loss_queue_size > valid_rate_freeze):
+
+      print("VALID RATE HAS EXCEEDED {}, Valid Network will now be frozen".format(valid_rate_freeze))
+      freeze_model(agent.DDPG_Actor.board_conv_layers_val)
+      freeze_model(agent.DDPG_Actor.card_fc_block_val)
+      freeze_model(agent.DDPG_Actor.post_conc_fc_layers_val)
+      freeze_model(agent.DDPG_Actor.val_output)
+      freeze_model(agent.DDPG_Target_Actor.board_conv_layers_val)
+      freeze_model(agent.DDPG_Target_Actor.card_fc_block_val)
+      freeze_model(agent.DDPG_Target_Actor.post_conc_fc_layers_val)
+      freeze_model(agent.DDPG_Target_Actor.val_output)
+      # set freeze rate to None so that this check only happens once
+      valid_rate_freeze = None
+
+
+    # if((episode + 1) % 100 == 0):
+    #   print("Average number of valid moves per turn from a database of {} turns: {}"
+    #     .format(len(onitama_valid_count), sum(onitama_valid_count)/len(onitama_valid_count)))
+    #   print("Minimim: {}".format(min(onitama_valid_count)))
+    #   print("Maximum: {}".format(max(onitama_valid_count)))
+    #   print("Median: {}".format(statistics.median(onitama_valid_count)))
+
   # print win list
   print(win_list)
   print("Agent won {} games out of {}".format(len(win_list), episodes))
@@ -439,12 +472,19 @@ def onitama_deeprl_train(mode, model, episodes, training_name, competing_AI_mode
   df = pd.DataFrame(valid_rate_log)
   df.to_csv("Training_Plots/" + training_name  + "/" + 'valid_rate.csv', index = False)
 
+  sns.histplot(onitama_valid_count)
+  plt.title("Frequency of valid moves in Onitama")
+  plt.xlabel("Number of Valid Moves")
+  plt.savefig("Training_Plots/" + training_name  + "/" + 'valid_move_count.pdf', 
+            bbox_inches = 'tight')
+  plt.close()
+
 if __name__ == "__main__":
 
-  onitama_deeprl_train("train", "DDPG", 100, "second_attempt", "minimax", 1, discount_rate = 0.99, 
+  onitama_deeprl_train("train", "DDPG", 20000, "second_attempt", "minimax", 1, discount_rate = 0.99, 
               lr_actor = 0.001, lr_critic = 0.001, tau = 0.005, board_input_shape = [4, 5, 5], card_input_shape = 10, 
               num_actions = 40, max_mem_size = 1000000, batch_size = 128, epsilon = 1,
               epsilon_min = 0.01, update_target = None, val_constant = 10, invalid_penalty = 500, hand_of_god = True,
               use_competing_AI_replay = False, win_loss_mem_size = 1000, desired_win_ratio = 0.6, use_hardcoded_cards = True,
-              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 50, win_loss_queue_size = 100,
-              architecture = "dual", moving_average = 25, verbose = False)
+              reward_mode = "simple_reward", minimax_boost = 1, mcts_boost = 5000, plot_every = 1000, win_loss_queue_size = 100,
+              architecture = "actions_only", moving_average = 50, verbose = False, valid_rate_freeze = 0.95)
