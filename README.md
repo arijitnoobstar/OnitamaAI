@@ -1,6 +1,7 @@
 
 # OnitamaAI : An Artificial Intelligence Implementation of the Onitama Board Game
 This repository showcases multiple traditional and Deep RL approaches to creating an artificial agent that plays Onitama proficiently. The Minimax Depth 5 and above models were found to be unbeaten by any human that competed against it.
+
 <img src="https://github.com/arijitnoobstar/OnitamaAI/blob/main/onitama_board.png" width="500" />
 
 The following algorithms were Implemented: 
@@ -33,7 +34,7 @@ To play against the Minimax and MCTS agents, run the `play_onitama` function for
     iteration_blue  =  None, mcts_efficiency  =  "space", parallel  =  None)
 The `game_mode` controls the type of the two players. It can be a minimax vs minimax or a player vs MCTS and so on. The strengths of the AIs can be set in the other parameters. MCTS paired against Minimax leads to the following matrix:
 
-<img src="https://github.com/arijitnoobstar/OnitamaAI/blob/main/minimaxVSmcts.png" width="500" />
+<img src="https://github.com/arijitnoobstar/OnitamaAI/blob/main/minimaxVmcts.png" width="500" />
 
 ## Deep RL Training
 
