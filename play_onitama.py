@@ -237,3 +237,5 @@ def run_onitama_experiment(games, equal_first_moves = True, path = None, game_mo
   return game_list
 
 game_list_list = []
+
+
